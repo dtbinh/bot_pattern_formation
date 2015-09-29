@@ -1,5 +1,5 @@
-#ifndef STATE_HT
-#define STATE_HT
+#ifndef STATE_AL
+#define STATE_AL
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -7,11 +7,11 @@
 
 #include "State.h"
 
-class StateHalt: public State{
+class StateAlign: public State{
 
  public:
 
-  StateHalt();
+  StateAlign();
 
   void Enter();
   void Execute(StateManager * fsm);

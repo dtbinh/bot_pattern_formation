@@ -13,23 +13,16 @@
 
 #include "FSM.h"
 
-StateEvade::StateEvade(){
-  name = "Evade"; 
+StateCatchUp::StateCatchUp(){
+  name = "CatchUp"; 
   
   /* initialize random seed: */
   srand (time(NULL));
-
-  deltaT = 5.;
-
-  time(&timeStamp);
-  timerExpired = false;
-
-  first = true;
 };
 
-void StateEvade::Enter(){};
+void StateCatchUp::Enter(){};
 
-void StateEvade::Execute(StateManager * fsm){
+void StateCatchUp::Execute(StateManager * fsm){
   //printf("Executing behaviour %s...\n", name.c_str());
 
   // This speed is half the standard speed 
@@ -43,25 +36,17 @@ void StateEvade::Execute(StateManager * fsm){
 
 };
 
-void StateEvade::Exit(){};
+void StateCatchUp::Exit(){};
 
-State * StateEvade::Transition(bool* stimuli){
+State * StateCatchUp::Transition(bool* stimuli){
 
   SetStimuli(stimuli);
-   
-  time_t currentTime;
-  time(&currentTime);
-  // Check if manvouver has finished yet
-
-  if(difftime(currentTime, timeStamp) > deltaT){
-    timerExpired = true;
-  }
 
   if(friendAhead and (friendLeft or friendRight) ){
     return new StateCruise();
   }
-  else if(friendAhead and not friendBehind ){
-    return new StateCatchUp();
+  else if(friendBehind and friendAhead ){
+    return new StateImpulseSpeed();
   }
   else if(not aligned ){
     return new StateAlign();
@@ -78,10 +63,10 @@ State * StateEvade::Transition(bool* stimuli){
 
 };
 
-std::string StateEvade::GetNameString(){
+std::string StateCatchUp::GetNameString(){
   return name;
 };
 
-void StateEvade::Print(){
+void StateCatchUp::Print(){
   printf("%s\n",name.c_str());
 };

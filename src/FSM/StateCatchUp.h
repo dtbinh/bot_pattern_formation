@@ -1,5 +1,5 @@
-#ifndef STATE_HT
-#define STATE_HT
+#ifndef STATE_CU
+#define STATE_CU
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -7,11 +7,12 @@
 
 #include "State.h"
 
-class StateHalt: public State{
+
+class StateCatchUp: public State{
 
  public:
 
-  StateHalt();
+  StateCatchUp();
 
   void Enter();
   void Execute(StateManager * fsm);
@@ -23,9 +24,9 @@ class StateHalt: public State{
   
   std::string GetNameString();
  
-  private:
+ private:
 
-  string name;
+  std::string name;
 
 };
 #endif

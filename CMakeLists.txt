@@ -9,9 +9,10 @@ set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
 set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 
 add_executable(botPatternFormation src/botModelController.cpp src/FSM/FSM.cpp 
-		src/FSM/StateSearchPuck.cpp src/FSM/StateTrackPuck.cpp src/FSM/StateCapturePuck.cpp 
-		src/FSM/StateSearchGoal.cpp src/FSM/StateTrackGoal.cpp src/FSM/StateReleasePuck.cpp
-		src/FSM/StateDepositPuck.cpp src/FSM/StateEvade.cpp) 
+		src/FSM/StateImpulseSpeed.cpp src/FSM/StateCatchUp.cpp
+		src/FSM/StateAlign.cpp src/FSM/StateHalt.cpp
+		src/FSM/StateEvade.cpp src/FSM/StateCruise.cpp)		 
+
 target_link_libraries(botPatternFormation ${catkin_LIBRARIES})
 add_dependencies(botPatternFormation vrep_common_generate_messages_cpp)
 

@@ -1,5 +1,5 @@
-#ifndef STATE_HT
-#define STATE_HT
+#ifndef STATE_IS
+#define STATE_IS
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -7,11 +7,13 @@
 
 #include "State.h"
 
-class StateHalt: public State{
+#include "FSM.h"
+
+class StateImpulseSpeed: public State{
 
  public:
 
-  StateHalt();
+  StateImpulseSpeed();
 
   void Enter();
   void Execute(StateManager * fsm);

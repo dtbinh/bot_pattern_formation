@@ -13,58 +13,43 @@
 
 #include "FSM.h"
 
-StateEvade::StateEvade(){
-  name = "Evade"; 
-  
-  /* initialize random seed: */
-  srand (time(NULL));
+StateAlign::StateAlign(){
+name = "Align"; 
 
-  deltaT = 5.;
-
-  time(&timeStamp);
-  timerExpired = false;
-
-  first = true;
+/* initialize random seed: */
+ srand (time(NULL));
 };
 
-void StateEvade::Enter(){};
+void StateAlign::Enter(){};
 
-void StateEvade::Execute(StateManager * fsm){
+void StateAlign::Execute(StateManager * fsm){
   //printf("Executing behaviour %s...\n", name.c_str());
 
   // This speed is half the standard speed 
   fsm->SetTransSpeed(2);
   
-  // This value should depend on formationHeadingError
-  float trackingError = fsm->GetFormationHeadingError();
+  // This value should depend on magneticHeadingError
+  float trackingError = fsm->GetMagneticHeadingError();
   float kp = fsm->GetProportionalGain();  
   
   fsm->SetRotSpeed(kp*trackingError);
 
 };
 
-void StateEvade::Exit(){};
+void StateAlign::Exit(){};
 
-State * StateEvade::Transition(bool* stimuli){
+State * StateAlign::Transition(bool* stimuli){
 
   SetStimuli(stimuli);
-   
-  time_t currentTime;
-  time(&currentTime);
-  // Check if manvouver has finished yet
 
-  if(difftime(currentTime, timeStamp) > deltaT){
-    timerExpired = true;
+  if(not aligned){
+    return NULL;
   }
-
-  if(friendAhead and (friendLeft or friendRight) ){
+  else if(friendAhead and (friendLeft or friendRight) and not friendBehind ){
     return new StateCruise();
   }
   else if(friendAhead and not friendBehind ){
     return new StateCatchUp();
-  }
-  else if(not aligned ){
-    return new StateAlign();
   }
   else if( frontProx ){
     return new StateEvade();
@@ -72,16 +57,19 @@ State * StateEvade::Transition(bool* stimuli){
   else if( friendBehind and not friendAhead){
     return new StateHalt();
   }
+  else if (friendAhead and friendBehind){
+    return new StateImpulseSpeed();
+  }
   else{
     return NULL;
   }
 
 };
 
-std::string StateEvade::GetNameString(){
+std::string StateAlign::GetNameString(){
   return name;
 };
 
-void StateEvade::Print(){
+void StateAlign::Print(){
   printf("%s\n",name.c_str());
 };

@@ -4,12 +4,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string>
+#include <vector>
+
 
 // Abstract base class for state
 #include "State.h"
 
 // State classes
-#include "StateSearchPuck.h"
+#include "State.h"
 
 using namespace std;
 
@@ -26,13 +28,13 @@ public:
   void PrintCurrentState();
   string GetCurrentStateName();
 
-  void SetPuckControlError(float e);
-  void SetGoalControlError(float e);
-
-  float GetRotControlErrorPuck();
-  float GetRotControlErrorGoal();
-
   float GetProportionalGain();
+
+  void SetMagneticHeadingError(float value);
+  void SetFormationHeadingError(float value);
+
+  float GetMagneticHeadingError();
+  float GetFormationHeadingError();
 
   void SetRotSpeed(float speed);
   void SetTransSpeed(int speed);
@@ -50,8 +52,8 @@ private:
   float rot_speed;
   bool openServo;
 
-  float rotControlErrorPuck;
-  float rotControlErrorGoal;
+  float magneticHeadingError;
+  float formationHeadingError;
 
   float kp;
 };

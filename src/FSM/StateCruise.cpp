@@ -13,52 +13,34 @@
 
 #include "FSM.h"
 
-StateEvade::StateEvade(){
-  name = "Evade"; 
+StateCruise::StateCruise(){
+  name = "Cruise"; 
   
   /* initialize random seed: */
   srand (time(NULL));
-
-  deltaT = 5.;
-
-  time(&timeStamp);
-  timerExpired = false;
-
-  first = true;
 };
 
-void StateEvade::Enter(){};
+void StateCruise::Enter(){};
 
-void StateEvade::Execute(StateManager * fsm){
+void StateCruise::Execute(StateManager * fsm){
   //printf("Executing behaviour %s...\n", name.c_str());
 
-  // This speed is half the standard speed 
-  fsm->SetTransSpeed(2);
+  // Full speed ahead!
+  fsm->SetTransSpeed(1);
   
   // This value should depend on formationHeadingError
-  float trackingError = fsm->GetFormationHeadingError();
-  float kp = fsm->GetProportionalGain();  
-  
-  fsm->SetRotSpeed(kp*trackingError);
+  fsm->SetRotSpeed(0.);
 
 };
 
-void StateEvade::Exit(){};
+void StateCruise::Exit(){};
 
-State * StateEvade::Transition(bool* stimuli){
+State * StateCruise::Transition(bool* stimuli){
 
   SetStimuli(stimuli);
-   
-  time_t currentTime;
-  time(&currentTime);
-  // Check if manvouver has finished yet
 
-  if(difftime(currentTime, timeStamp) > deltaT){
-    timerExpired = true;
-  }
-
-  if(friendAhead and (friendLeft or friendRight) ){
-    return new StateCruise();
+  if(friendAhead and friendBehind ){
+    return new StateImpulseSpeed();
   }
   else if(friendAhead and not friendBehind ){
     return new StateCatchUp();
@@ -78,10 +60,10 @@ State * StateEvade::Transition(bool* stimuli){
 
 };
 
-std::string StateEvade::GetNameString(){
+std::string StateCruise::GetNameString(){
   return name;
 };
 
-void StateEvade::Print(){
+void StateCruise::Print(){
   printf("%s\n",name.c_str());
 };

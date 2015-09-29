@@ -1,5 +1,5 @@
-#ifndef STATE_HT
-#define STATE_HT
+#ifndef STATE_CR
+#define STATE_CR
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -7,11 +7,11 @@
 
 #include "State.h"
 
-class StateHalt: public State{
+class StateCruise: public State{
 
  public:
 
-  StateHalt();
+  StateCruise();
 
   void Enter();
   void Execute(StateManager * fsm);

@@ -36,26 +36,18 @@ using namespace std;
 bool simulationRunning=true;
 float simulationTime=0.0f;
 
-float rotControlErrorRed = 0.;
-float rotControlErrorBlue = 0.;
-
-float targetPuckX = 0.;
-float targetPuckY = 0.;
-
-float targetGoalX = 0.;
-float targetGoalY = 0.;
-
-//float turning_kp = 1.0;
+// Visual Servoing Data
+float magneticHeadingError = 0.;
+float formationHeadingError = 0.;
 
 // Sensor booleans
-bool atGoal = false;
-bool atPuck = false;
-bool seePuck = false;
-bool seeGoal = false;
-bool frontSensor = false;
-bool rearSensor = false;
-bool puck2Close2Goal = false;
-bool movingForward = true;
+bool frontProxSensor = false;
+bool rearProxSensor = false;
+bool friendLeft = false;
+bool friendRight = false;
+bool friendAhead = false;
+bool friendBehind = false;
+bool aligned = false;
 
 
 //===========================================================================
@@ -74,106 +66,125 @@ void infoCallback(const vrep_common::VrepInfo::ConstPtr& info){
 void frontSensorCallback(const vrep_common::ProximitySensorData::ConstPtr& sens){
   printf("Front sensor.\n");
   
-  frontSensor = true;
+  frontProxSensor = true;
 }
 
 void rearSensorCallback(const vrep_common::ProximitySensorData::ConstPtr& sens){
   printf("Rear sensor.\n"); 
   
-  rearSensor = true;
+  rearProxSensor = true;
 }
 
 void cameraBlueCallback(const vrep_common::VisionSensorData::ConstPtr& sens){
-
-  int nPackets = sens->packetSizes.data.size();
-   
-  int dataSize = 0;
-
-  for(int i = 0; i < nPackets; i++){
-    dataSize += sens->packetSizes.data[i];
-  }
-
-  // If there are more than 15 packets a blob has been detected.
-  // The largest blob is listed first.
-  if(dataSize >= 20){
-    float blob_xPos = sens->packetData.data[19];
-    float blob_yPos = sens->packetData.data[20];
-    
-    targetGoalX = blob_xPos;
-    targetGoalY = blob_yPos;
-
-    // If the blob is large we are at the deposit site.
-    if(blob_yPos < 0.5 and fabs(blob_xPos) - 0.5 < 0.1 or blob_yPos < 0.2 ){
-      atGoal= true;
-      seeGoal = true;
-      rotControlErrorBlue = 0.;
-    }
-    // If not in no puck in the gripper try to track it
-    else{
-      atGoal = false;
-      seeGoal = true;
-      rotControlErrorBlue = blob_xPos-0.5;
-    }
-  }
-  // If no blob information is sent then no blob was seen.
-  else{
-    atGoal = false;
-    seeGoal = false;
-    rotControlErrorBlue = 0.;
-  }
 }
 
 void cameraRedCallback(const vrep_common::VisionSensorData::ConstPtr& sens){
-
-  int nPackets = sens->packetSizes.data.size();
-  
-  int dataSize = 0;
-
-  for(int i = 0; i < nPackets; i++){
-    dataSize += sens->packetSizes.data[i];
-  }
-
-  // If there are more than 15 packets a blob has been detected.
-  // The largest blob is listed first. We test for 20 because we 
-  // want data that ends around 20th bin.
-  if(dataSize >= 20){
-    float blob_xPos = sens->packetData.data[19];
-    float blob_yPos = sens->packetData.data[20];
-    
-    targetPuckX = blob_xPos;
-    targetPuckY = blob_yPos;
-
-    // If the blob is with in the gripper turn on servo
-    if(blob_yPos < 0.15 and fabs(blob_xPos) < 0.55){
-      atPuck = true;
-      seePuck = true;
-      rotControlErrorRed = 0.;
-    }
-    // If not in no puck in the gripper try to track it
-    else{
-      atPuck = false;
-      seePuck = true;
-      rotControlErrorRed = blob_xPos-0.5;
-    }
-  }
-  // If no blob data is recieved
-  else{
-    rotControlErrorRed = 0.;
-    atPuck = false;
-    seePuck = false;
-  }
 }
 
 void omniFrontCallback(const vrep_common::VisionSensorData::ConstPtr& sens){
+  /*
+    vrep_common::VisionSensorData has two sub messages in it.
+    packetSizes has int vector which lists the number of entries per packet
+    PacketData contains a float vector which holds the packet data.
+  */
+
+  // one empty packet plus the number of blobs detected.
+  int nPackets = sens->packetSizes.data.size();
+  
+  if(nPackets < 1){
+    printf("No packets sent!\n");
+    return;
+  }
+
+  // If a blob is detected then a team mate is in front.
+  if(nPackets > 1){
+    friendAhead = true;
+  }
+  else{
+    friendAhead = false;
+    formationHeadingError = 0.; 
+    return;
+  }
+
+  int numberOfBlobs =  sens->packetData.data[0];
+  int datumPerBlob =  sens->packetData.data[1];
+
+  // There are a few different cases depending on the number of
+  // blobs detected.
+  // Case 1: Single blob detection -> Drive toward it.
+  if(numberOfBlobs == 1){
+    
+    float blob_x_pos =  sens->packetData.data[4];
+
+    formationHeadingError = blob_x_pos - 0.5; 
+  }
+  // Case 2: Two or more blobs detected -> Drive toward the mid point between two largest
+  else if(numberOfBlobs > 1){
+
+    float blob1_x_pos =  sens->packetData.data[4];
+    float blob2_x_pos =  sens->packetData.data[10];
+
+    float midPoint = (blob1_x_pos + blob2_x_pos)/2.;
+
+    formationHeadingError = midPoint - 0.5;
+    printf("(%f + %f) / 2. = %f\n",blob1_x_pos, blob2_x_pos, midPoint); 
+    printf("%f\n", formationHeadingError);
+  }
+  // Case 3: Shouldn't happen -> No direction
+  else{
+    formationHeadingError = 0.;
+  }
+
+  // For debugging purposes
+  printf("# of Packets = %d\n", nPackets);
+  for(int i = 0; i < numberOfBlobs; i++){
+    printf("========= BLOB # %i ==========\n",i+1);
+    printf("Blob Size = %f\n", sens->packetData.data[i*datumPerBlob]);
+    printf("Blob Orientation  = %f\n", sens->packetData.data[i*datumPerBlob+1]);
+    printf("Blob X = %f\n", sens->packetData.data[i*datumPerBlob+2]);
+    printf("Blob Y = %f\n", sens->packetData.data[i*datumPerBlob+3]);
+    printf("Blob width  = %f\n", sens->packetData.data[i*datumPerBlob+4]);
+    printf("Blob height = %f\n\n", sens->packetData.data[i*datumPerBlob+5]);
+  }
 }
 
 void omniBackCallback(const vrep_common::VisionSensorData::ConstPtr& sens){
+  int nPackets = sens->packetSizes.data.size();
+
+  if(nPackets > 1){
+    friendBehind = true;
+  }
+  else{
+    friendBehind = false;
+  }
+  
+  return;
 }
 
 void omniRightCallback(const vrep_common::VisionSensorData::ConstPtr& sens){
+   int nPackets = sens->packetSizes.data.size();
+
+  if(nPackets > 1){
+    friendRight = true;
+  }
+  else{
+    friendRight = false;
+  } 
+
+  return;
 }
 
 void omniLeftCallback(const vrep_common::VisionSensorData::ConstPtr& sens){
+  int nPackets = sens->packetSizes.data.size();
+  
+  if(nPackets > 1){
+    friendLeft = true;
+  }
+  else{
+    friendLeft = false;
+  }
+  
+  return;
 }
 
 void bodyOrientationCallback(const geometry_msgs::PoseStamped& pose){
@@ -221,18 +232,6 @@ void sendMsg2Console(ros::NodeHandle node, int outputHandle, string msg){
   consoleClient.call(consoleMsg);
 
   return;
-}
- 
-bool CheckPuckGoalDistance(){
- 
-  float xDiff = fabs(targetGoalX - targetPuckX);
-  float yDiff = fabs(targetGoalY - targetPuckY);
- 
-  if((xDiff < 0.07 and yDiff < 0.07) || yDiff < 0.05)
-    return true;
-  else
-    return false;
-  
 }
 
 void RequestPublisher(ros::NodeHandle node, string topicName, 
@@ -460,25 +459,26 @@ int main(int argc,char* argv[]){
   float rot_speed = 0.;
   bool openServo = true;
  
-  float desiredLeftMotorSpeed = 0.;
-  float desiredRightMotorSpeed = 0.;
+  float desiredLeftMotorSpeed = 10.;
+  float desiredRightMotorSpeed = 10.;
   
   while (ros::ok() and simulationRunning){
 
     bool stimuli[7];
-    stimuli[0] = seePuck;
-    stimuli[1] = atPuck;
-    stimuli[2] = seeGoal;
-    stimuli[3] = atGoal;
-    stimuli[4] = movingForward;
-    stimuli[5] = CheckPuckGoalDistance();
-    stimuli[6] = frontSensor || rearSensor;
+    stimuli[0] = frontProxSensor;
+    stimuli[1] = rearProxSensor;
+    stimuli[2] = friendLeft;
+    stimuli[3] = friendRight;
+    stimuli[4] = friendAhead;
+    stimuli[5] = friendBehind;
+    stimuli[6] = aligned;
 
-
+    // Send stimuli data
     fsm->UpdateBehaviour(stimuli);
     
-    fsm->SetPuckControlError(rotControlErrorRed);
-    fsm->SetGoalControlError(rotControlErrorBlue);
+    // Send visual servo data
+    fsm->SetMagneticHeadingError(magneticHeadingError);
+    fsm->SetFormationHeadingError(formationHeadingError);
 
     // ExecuteBehaviour will return a translational speed, rotational speed, and a boolean
     // to determine weather to open or close the servo.
@@ -494,9 +494,8 @@ int main(int argc,char* argv[]){
     // state the desired left and right wheel motors speeds are calculated.
     desiredLeftMotorSpeed = (2.*trans_speed + rot_speed) / 2.;
     desiredRightMotorSpeed = (2.*trans_speed - rot_speed) / 2.;
-    
-
-     // Now that we know what speeds we need the wheels
+ 
+    // Now that we know what speeds we need the wheels
     // to rotate at we can send that info to V-REP 
     vrep_common::JointSetStateData motorSpeeds;
    
@@ -513,26 +512,28 @@ int main(int argc,char* argv[]){
     std::string behaviour = fsm->GetCurrentStateName();
     std::ostringstream ss;
     ss << "behaviour = " << behaviour  <<"\n"
-       << "seePuck = " << seePuck <<"\n"
-       << "havePuck = " << atPuck <<"\n"
-       << "seeGoal = " << seeGoal <<"\n"
-       << "atGoal = " << atGoal <<"\n"
-       << "movingForward = " << movingForward<<"\n"
-       << "puck2Close2Goal = " << puck2Close2Goal<<"\n"
-       << "prox = " << (frontSensor || rearSensor) <<"\n"
+       << "frontProxSensor = " << frontProxSensor <<"\n"
+       << "rearProxSensor = " << rearProxSensor <<"\n"
+       << "friendLeft = " << friendLeft <<"\n"
+       << "friendRight = " << friendRight <<"\n"
+       << "friendAhead = " << friendAhead <<"\n"
+       << "friendBehind = " << friendBehind <<"\n"
+       << "aligned = " << aligned <<"\n"
        << "transSpeed = " << trans_speed<<"\n"
        << "rotSpeed = " << rot_speed<<"\n";
     
     std::string msg(ss.str());
     sendMsg2Console(node, outputHandle, msg);
-   
+
+    // TODO: find a better way to reset the proximity sensors
     // Reset Prox sensors
-    frontSensor = false;
-    rearSensor = false;
+    frontProxSensor = false;
+    rearProxSensor = false;
 
     // handle ROS messages:
     ros::spinOnce();
   }
+
   // Close down the node.
   ros::shutdown();
   printf("...botModelController stopped\n");

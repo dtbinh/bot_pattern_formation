@@ -2,10 +2,10 @@
 #include <stdlib.h>
 #include <string>
 
-#include "StateImpulseSpeed.h"
+#include "StateRandomWalk.h"
 #include "StateCruise.h"
 #include "StateCatchUp.h"
-#include "StateAlign.h"
+#include "StateAlgin.h"
 #include "StateEvade.h"
 #include "StateHalt.h"
 
@@ -13,23 +13,16 @@
 
 #include "FSM.h"
 
-StateEvade::StateEvade(){
-  name = "Evade"; 
-  
-  /* initialize random seed: */
-  srand (time(NULL));
+StateRandomWalk::StateRandomWalk(){
+name = "RandomWalk"; 
 
-  deltaT = 5.;
-
-  time(&timeStamp);
-  timerExpired = false;
-
-  first = true;
+/* initialize random seed: */
+ srand (time(NULL));
 };
 
-void StateEvade::Enter(){};
+void StateRandomWalk::Enter(){};
 
-void StateEvade::Execute(StateManager * fsm){
+void StateRandomWalk::Execute(StateManager * fsm){
   //printf("Executing behaviour %s...\n", name.c_str());
 
   // This speed is half the standard speed 
@@ -43,19 +36,11 @@ void StateEvade::Execute(StateManager * fsm){
 
 };
 
-void StateEvade::Exit(){};
+void StateRandomWalk::Exit(){};
 
-State * StateEvade::Transition(bool* stimuli){
+State * StateRandomWalk::Transition(bool* stimuli){
 
   SetStimuli(stimuli);
-   
-  time_t currentTime;
-  time(&currentTime);
-  // Check if manvouver has finished yet
-
-  if(difftime(currentTime, timeStamp) > deltaT){
-    timerExpired = true;
-  }
 
   if(friendAhead and (friendLeft or friendRight) ){
     return new StateCruise();
@@ -66,22 +51,22 @@ State * StateEvade::Transition(bool* stimuli){
   else if(not aligned ){
     return new StateAlign();
   }
-  else if( frontProx ){
+  else if( frontPox ){
     return new StateEvade();
   }
   else if( friendBehind and not friendAhead){
     return new StateHalt();
   }
   else{
-    return NULL;
+    return NULL();
   }
 
 };
 
-std::string StateEvade::GetNameString(){
+std::string StateRandomWalk::GetNameString(){
   return name;
 };
 
-void StateEvade::Print(){
+void StateRandomWalk::Print(){
   printf("%s\n",name.c_str());
 };

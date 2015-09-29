@@ -1,5 +1,5 @@
-#ifndef STATE_H
-#define STATE_H
+#ifndef STATE_AB
+#define STATE_AB
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -31,9 +31,27 @@ class State{
 
   virtual string GetNameString(){};
   
- private:
+  void SetStimuli(bool * stimuli){
+    frontProx = stimuli[0];
+    rearProx = stimuli[1];
+    friendLeft = stimuli[2];
+    friendRight = stimuli[3];
+    friendAhead = stimuli[4];
+    friendBehind = stimuli[5];
+    aligned = stimuli[6];
+  };
+
+ protected:
 
   string name;
+  
+  bool frontProx;
+  bool rearProx;
+  bool friendLeft;
+  bool friendRight;
+  bool friendAhead;
+  bool friendBehind;
+  bool aligned;
 
 };
 #endif

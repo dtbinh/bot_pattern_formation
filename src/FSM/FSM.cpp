@@ -2,18 +2,23 @@
 #include <stdlib.h>
 
 #include "FSM.h"
+#include "State.h"
+#include "StateAlign.h"
 
 StateManager::StateManager(){
-  currentState = new StateSearchPuck();
-  
+
+  //currentState = new StateRandomWalk();
+  //currentState = new StateCatchUp();
+  currentState = new StateAlign();
+
   trans_speed = 5.;
   rot_speed = 0.;
   openServo = true;
   
   kp = 4.0;
 
-  rotControlErrorPuck = 0.;
-  rotControlErrorGoal = 0.;    
+  magneticHeadingError = 0.;
+  formationHeadingError = 0.;    
 };
 
 void StateManager::UpdateBehaviour(bool* stimuli){
@@ -47,20 +52,20 @@ string StateManager::GetCurrentStateName(){
   return currentState->GetNameString();
 }
 
-void StateManager::SetPuckControlError(float e){
-  rotControlErrorPuck = e;
+void StateManager::SetMagneticHeadingError(float value){
+  magneticHeadingError = value;
 };
 
-void StateManager::SetGoalControlError(float e){
-  rotControlErrorGoal = e;
+void StateManager::SetFormationHeadingError(float value){
+  formationHeadingError = value;
 };
 
-float StateManager::GetRotControlErrorPuck(){
-  return rotControlErrorPuck;
+float StateManager::GetMagneticHeadingError(){
+  return magneticHeadingError;
 };
 
-float StateManager::GetRotControlErrorGoal(){
-  return rotControlErrorGoal;
+float StateManager::GetFormationHeadingError(){
+  return formationHeadingError;
 };
 
 float StateManager::GetProportionalGain(){
@@ -77,6 +82,9 @@ void StateManager::SetTransSpeed(int speed){
   }
   else if(speed == -1){
     trans_speed = -5.;
+  }
+  else if(speed == 2){
+    trans_speed = 2.5;
   }
   else{
     trans_speed = 0.;
