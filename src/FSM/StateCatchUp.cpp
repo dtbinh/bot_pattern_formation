@@ -26,7 +26,7 @@ void StateCatchUp::Execute(StateManager * fsm){
   //printf("Executing behaviour %s...\n", name.c_str());
 
   // This speed is half the standard speed 
-  fsm->SetTransSpeed(2);
+  fsm->SetTransSpeed(1);
   
   // This value should depend on formationHeadingError
   float trackingError = fsm->GetFormationHeadingError();
@@ -42,7 +42,8 @@ State * StateCatchUp::Transition(bool* stimuli){
 
   SetStimuli(stimuli);
 
-  if(friendAhead and (friendLeft or friendRight) ){
+  if( (not friendAhead and not friendBehind) and
+     (friendLeft or friendRight) ){
     return new StateCruise();
   }
   else if(friendBehind and friendAhead ){

@@ -81,7 +81,7 @@ void StateManager::SetTransSpeed(int speed){
     trans_speed = 5.;
   }
   else if(speed == -1){
-    trans_speed = -5.;
+    trans_speed = -2.5;
   }
   else if(speed == 2){
     trans_speed = 2.5;

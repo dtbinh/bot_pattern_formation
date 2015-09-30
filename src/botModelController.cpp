@@ -3,10 +3,14 @@
 #include <string.h>
 #include <math.h>
 
-// ROS indudes
+// ROS includes
 #include <ros/ros.h>
 #include <sensor_msgs/Image.h>
 #include <geometry_msgs/PoseStamped.h>
+#include "tf/transform_listener.h"
+#include "tf/message_filter.h"
+#include "message_filters/subscriber.h"
+#include "tf/transform_datatypes.h"
 
 // Include for V-REP
 #include "../include/v_repConst.h"
@@ -90,6 +94,8 @@ void omniFrontCallback(const vrep_common::VisionSensorData::ConstPtr& sens){
 
   // one empty packet plus the number of blobs detected.
   int nPackets = sens->packetSizes.data.size();
+  int numberOfBlobs =  sens->packetData.data[0];
+  int datumPerBlob =  sens->packetData.data[1];
   
   if(nPackets < 1){
     printf("No packets sent!\n");
@@ -97,7 +103,7 @@ void omniFrontCallback(const vrep_common::VisionSensorData::ConstPtr& sens){
   }
 
   // If a blob is detected then a team mate is in front.
-  if(nPackets > 1){
+  if(numberOfBlobs > 1){
     friendAhead = true;
   }
   else{
@@ -105,9 +111,6 @@ void omniFrontCallback(const vrep_common::VisionSensorData::ConstPtr& sens){
     formationHeadingError = 0.; 
     return;
   }
-
-  int numberOfBlobs =  sens->packetData.data[0];
-  int datumPerBlob =  sens->packetData.data[1];
 
   // There are a few different cases depending on the number of
   // blobs detected.
@@ -127,16 +130,15 @@ void omniFrontCallback(const vrep_common::VisionSensorData::ConstPtr& sens){
     float midPoint = (blob1_x_pos + blob2_x_pos)/2.;
 
     formationHeadingError = midPoint - 0.5;
-    printf("(%f + %f) / 2. = %f\n",blob1_x_pos, blob2_x_pos, midPoint); 
-    printf("%f\n", formationHeadingError);
+  
   }
   // Case 3: Shouldn't happen -> No direction
   else{
     formationHeadingError = 0.;
   }
-
+  printf("Front # of Blobs = %i\n", numberOfBlobs); 
   // For debugging purposes
-  printf("# of Packets = %d\n", nPackets);
+  /*printf("# of Packets = %d\n", nPackets);
   for(int i = 0; i < numberOfBlobs; i++){
     printf("========= BLOB # %i ==========\n",i+1);
     printf("Blob Size = %f\n", sens->packetData.data[i*datumPerBlob]);
@@ -145,13 +147,16 @@ void omniFrontCallback(const vrep_common::VisionSensorData::ConstPtr& sens){
     printf("Blob Y = %f\n", sens->packetData.data[i*datumPerBlob+3]);
     printf("Blob width  = %f\n", sens->packetData.data[i*datumPerBlob+4]);
     printf("Blob height = %f\n\n", sens->packetData.data[i*datumPerBlob+5]);
-  }
+    }*/
 }
 
 void omniBackCallback(const vrep_common::VisionSensorData::ConstPtr& sens){
-  int nPackets = sens->packetSizes.data.size();
 
-  if(nPackets > 1){
+  int numberOfBlobs =  sens->packetData.data[0];
+  
+  printf("Back # of Blobs= %i\n", numberOfBlobs); 
+
+  if(numberOfBlobs > 0){
     friendBehind = true;
   }
   else{
@@ -162,9 +167,12 @@ void omniBackCallback(const vrep_common::VisionSensorData::ConstPtr& sens){
 }
 
 void omniRightCallback(const vrep_common::VisionSensorData::ConstPtr& sens){
-   int nPackets = sens->packetSizes.data.size();
 
-  if(nPackets > 1){
+  int numberOfBlobs =  sens->packetData.data[0];
+  
+  printf("Right # of Blobs= %i\n", numberOfBlobs); 
+  
+  if(numberOfBlobs > 0){
     friendRight = true;
   }
   else{
@@ -175,9 +183,12 @@ void omniRightCallback(const vrep_common::VisionSensorData::ConstPtr& sens){
 }
 
 void omniLeftCallback(const vrep_common::VisionSensorData::ConstPtr& sens){
-  int nPackets = sens->packetSizes.data.size();
   
-  if(nPackets > 1){
+  int numberOfBlobs =  sens->packetData.data[0];
+  
+  printf("Left # of Blobs = %i\n", numberOfBlobs); 
+  
+  if(numberOfBlobs > 0){
     friendLeft = true;
   }
   else{
@@ -188,7 +199,17 @@ void omniLeftCallback(const vrep_common::VisionSensorData::ConstPtr& sens){
 }
 
 void bodyOrientationCallback(const geometry_msgs::PoseStamped& pose){
-  //printf("Body orientation callback function...\n");
+
+  double orientation = tf::getYaw(pose.pose.orientation);
+
+  
+  magneticHeadingError = orientation + M_PI/2.;
+
+  if(magneticHeadingError > 0.05)
+    aligned = false;
+  else
+    aligned = true;
+
 }
 
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/

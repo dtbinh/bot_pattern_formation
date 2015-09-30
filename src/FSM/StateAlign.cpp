@@ -25,8 +25,7 @@ void StateAlign::Enter(){};
 void StateAlign::Execute(StateManager * fsm){
   //printf("Executing behaviour %s...\n", name.c_str());
 
-  // This speed is half the standard speed 
-  fsm->SetTransSpeed(2);
+  fsm->SetTransSpeed(0);
   
   // This value should depend on magneticHeadingError
   float trackingError = fsm->GetMagneticHeadingError();
