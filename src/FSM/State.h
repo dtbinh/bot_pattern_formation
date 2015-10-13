@@ -29,6 +29,8 @@ class State{
 
   virtual void Print(){};
 
+  virtual void DetermineHeading(){};
+
   virtual string GetNameString(){};
   
   void SetStimuli(bool * stimuli){

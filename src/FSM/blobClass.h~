@@ -1,0 +1,9 @@
+#ifndef BLOB
+#define BLOB
+class blobClass{
+public:
+
+  float blobBearing;
+  float blobArea;
+};
+#endif

@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <vector>
 
 // ROS includes
 #include <ros/ros.h>
@@ -30,6 +31,7 @@
 
 // Finite State Machine used to control Behaviour
 #include "FSM/FSM.h"
+#include "FSM/blobClass.h"
 
 using namespace std;
 
@@ -41,6 +43,13 @@ bool simulationRunning=true;
 float simulationTime=0.0f;
 
 // Visual Servoing Data
+vector<blobClass*> frontViewBlobVector;
+vector<blobClass*> leftViewBlobVector;
+vector<blobClass*> rightViewBlobVector;
+vector<blobClass*> rearViewBlobVector;
+
+vector<blobClass*> fullBlobVector;
+
 float magneticHeadingError = 0.;
 float formationHeadingError = 0.;
 
@@ -86,60 +95,54 @@ void cameraRedCallback(const vrep_common::VisionSensorData::ConstPtr& sens){
 }
 
 void omniFrontCallback(const vrep_common::VisionSensorData::ConstPtr& sens){
-  /*
-    vrep_common::VisionSensorData has two sub messages in it.
-    packetSizes has int vector which lists the number of entries per packet
-    PacketData contains a float vector which holds the packet data.
-  */
-
+  
   // one empty packet plus the number of blobs detected.
   int nPackets = sens->packetSizes.data.size();
   int numberOfBlobs =  sens->packetData.data[0];
   int datumPerBlob =  sens->packetData.data[1];
-  
+  // printf("========\nFront # of Blobs= %i\n", numberOfBlobs);
   if(nPackets < 1){
     printf("No packets sent!\n");
     return;
   }
 
   // If a blob is detected then a team mate is in front.
-  if(numberOfBlobs > 1){
+  if(numberOfBlobs > 0){
     friendAhead = true;
   }
   else{
     friendAhead = false;
-    formationHeadingError = 0.; 
-    return;
   }
 
-  // There are a few different cases depending on the number of
-  // blobs detected.
-  // Case 1: Single blob detection -> Drive toward it.
-  if(numberOfBlobs == 1){
-    
-    float blob_x_pos =  sens->packetData.data[4];
+  // Record the blobs detected 
+  frontViewBlobVector.clear();
 
-    formationHeadingError = blob_x_pos - 0.5; 
-  }
-  // Case 2: Two or more blobs detected -> Drive toward the mid point between two largest
-  else if(numberOfBlobs > 1){
-
-    float blob1_x_pos =  sens->packetData.data[4];
-    float blob2_x_pos =  sens->packetData.data[10];
-
-    float midPoint = (blob1_x_pos + blob2_x_pos)/2.;
-
-    formationHeadingError = midPoint - 0.5;
-  
-  }
-  // Case 3: Shouldn't happen -> No direction
-  else{
-    formationHeadingError = 0.;
-  }
-  printf("Front # of Blobs = %i\n", numberOfBlobs); 
-  // For debugging purposes
-  /*printf("# of Packets = %d\n", nPackets);
+  // Loop over the detected blobs and add them to the frontViewBlobVector 
   for(int i = 0; i < numberOfBlobs; i++){
+    blobClass * newBlob = new  blobClass();
+    
+    float blobLocalX =  sens->packetData.data[i*datumPerBlob + 5 ];
+    float blobLocalY =  sens->packetData.data[i*datumPerBlob + 6 ];
+    
+    float blobLocalBearing = atan2( blobLocalY, blobLocalX);
+
+    // TODO: Need to make sure magneticHeadingError's time Stamp matches or is
+    // at least local to the current time.
+    newBlob->blobBearing =  blobLocalBearing - magneticHeadingError;
+
+    float blobWidth =  sens->packetData.data[i * datumPerBlob + 7 ];
+    float blobHeight =  sens->packetData.data[i * datumPerBlob + 8 ]; 
+    newBlob->blobArea =  blobWidth*blobHeight;
+    // printf("%f %f %f \n",blobLocalX, blobLocalY, newBlob->blobBearing);
+    frontViewBlobVector.push_back(newBlob);
+  }
+ 
+  formationHeadingError = 0.;
+  
+  /*
+    printf("Front # of Blobs = %i\n", numberOfBlobs); 
+    printf("# of Packets = %d\n", nPackets);
+    for(int i = 0; i < numberOfBlobs; i++){
     printf("========= BLOB # %i ==========\n",i+1);
     printf("Blob Size = %f\n", sens->packetData.data[i*datumPerBlob]);
     printf("Blob Orientation  = %f\n", sens->packetData.data[i*datumPerBlob+1]);
@@ -147,14 +150,23 @@ void omniFrontCallback(const vrep_common::VisionSensorData::ConstPtr& sens){
     printf("Blob Y = %f\n", sens->packetData.data[i*datumPerBlob+3]);
     printf("Blob width  = %f\n", sens->packetData.data[i*datumPerBlob+4]);
     printf("Blob height = %f\n\n", sens->packetData.data[i*datumPerBlob+5]);
-    }*/
+    }
+  */
 }
 
 void omniBackCallback(const vrep_common::VisionSensorData::ConstPtr& sens){
-
+ 
+  // one empty packet plus the number of blobs detected.
+  int nPackets = sens->packetSizes.data.size();
   int numberOfBlobs =  sens->packetData.data[0];
+  int datumPerBlob =  sens->packetData.data[1];
+
+  if(nPackets < 1){
+    printf("No packets sent!\n");
+    return;
+  }
   
-  printf("Back # of Blobs= %i\n", numberOfBlobs); 
+  //printf("Back # of Blobs= %i\n", numberOfBlobs); 
 
   if(numberOfBlobs > 0){
     friendBehind = true;
@@ -162,15 +174,48 @@ void omniBackCallback(const vrep_common::VisionSensorData::ConstPtr& sens){
   else{
     friendBehind = false;
   }
-  
+  // Record the blobs detected 
+  rearViewBlobVector.clear();
+
+  // Loop over the detected blobs and add them to the frontViewBlobVector 
+  for(int i = 0; i < numberOfBlobs; i++){
+    blobClass * newBlob = new  blobClass();
+    
+    float blobLocalX =  sens->packetData.data[i*datumPerBlob + 5 ];
+    float blobLocalY =  sens->packetData.data[i*datumPerBlob + 6 ];
+    
+    float blobLocalBearing = atan2( blobLocalY, blobLocalX);
+
+    // TODO: Need to make sure magneticHeadingError's time Stamp matches or is
+    // at least local to the current time.
+    newBlob->blobBearing =  blobLocalBearing - magneticHeadingError;
+    if(newBlob->blobBearing > 0.)
+      newBlob->blobBearing -= M_PI;
+    else
+      newBlob->blobBearing += M_PI;
+
+    float blobWidth =  sens->packetData.data[i * datumPerBlob + 7 ];
+    float blobHeight =  sens->packetData.data[i * datumPerBlob + 8 ]; 
+    newBlob->blobArea =  blobWidth*blobHeight;
+    //printf("%f %f %f \n",blobLocalX, blobLocalY, newBlob->blobBearing);
+    rearViewBlobVector.push_back(newBlob);
+  }
   return;
 }
 
 void omniRightCallback(const vrep_common::VisionSensorData::ConstPtr& sens){
 
-  int numberOfBlobs =  sens->packetData.data[0];
   
-  printf("Right # of Blobs= %i\n", numberOfBlobs); 
+  // one empty packet plus the number of blobs detected.
+  int nPackets = sens->packetSizes.data.size();
+  int numberOfBlobs =  sens->packetData.data[0];
+  int datumPerBlob =  sens->packetData.data[1];
+
+  if(nPackets < 1){
+    printf("No packets sent!\n");
+    return;
+  }
+  // printf("Right # of Blobs= %i\n", numberOfBlobs); 
   
   if(numberOfBlobs > 0){
     friendRight = true;
@@ -179,14 +224,44 @@ void omniRightCallback(const vrep_common::VisionSensorData::ConstPtr& sens){
     friendRight = false;
   } 
 
+  // Record the blobs detected 
+  rightViewBlobVector.clear();
+
+  // Loop over the detected blobs and add them to the frontViewBlobVector 
+  for(int i = 0; i < numberOfBlobs; i++){
+    blobClass * newBlob = new  blobClass();
+    
+    float blobLocalX =  sens->packetData.data[i*datumPerBlob + 5 ];
+    float blobLocalY =  sens->packetData.data[i*datumPerBlob + 6 ];
+    
+    float blobLocalBearing = atan2( blobLocalY, blobLocalX);
+
+    // TODO: Need to make sure magneticHeadingError's time Stamp matches or is
+    // at least local to the current time.
+    newBlob->blobBearing =  blobLocalBearing - magneticHeadingError+M_PI/2.;
+
+    float blobWidth =  sens->packetData.data[i * datumPerBlob + 7 ];
+    float blobHeight =  sens->packetData.data[i * datumPerBlob + 8 ]; 
+    newBlob->blobArea =  blobWidth*blobHeight;
+    // printf("%f %f %f \n",blobLocalX, blobLocalY, newBlob->blobBearing);
+    rightViewBlobVector.push_back(newBlob);
+  }
   return;
 }
 
 void omniLeftCallback(const vrep_common::VisionSensorData::ConstPtr& sens){
   
+  // one empty packet plus the number of blobs detected.
+  int nPackets = sens->packetSizes.data.size();
   int numberOfBlobs =  sens->packetData.data[0];
+  int datumPerBlob =  sens->packetData.data[1];
+ 
+  if(nPackets < 1){
+    printf("No packets sent!\n");
+    return;
+  }
   
-  printf("Left # of Blobs = %i\n", numberOfBlobs); 
+  // printf("Left # of Blobs = %i\n", numberOfBlobs); 
   
   if(numberOfBlobs > 0){
     friendLeft = true;
@@ -195,21 +270,42 @@ void omniLeftCallback(const vrep_common::VisionSensorData::ConstPtr& sens){
     friendLeft = false;
   }
   
+  // Record the blobs detected 
+  leftViewBlobVector.clear();
+  
+  for(int i = 0; i < numberOfBlobs; i++){
+    blobClass * newBlob = new  blobClass();
+    
+    float blobLocalX =  sens->packetData.data[i*datumPerBlob + 5 ];
+    float blobLocalY =  sens->packetData.data[i*datumPerBlob + 6 ];
+    
+    float blobLocalBearing = atan2( blobLocalY, blobLocalX);
+
+    // TODO: Need to make sure magneticHeadingError's time Stamp matches or is
+    // at least local to the current time.
+    newBlob->blobBearing =  blobLocalBearing - magneticHeadingError-M_PI/2.;
+
+    float blobWidth =  sens->packetData.data[i * datumPerBlob + 7 ];
+    float blobHeight =  sens->packetData.data[i * datumPerBlob + 8 ]; 
+    newBlob->blobArea =  blobWidth*blobHeight;
+    //printf("%f %f %f \n",blobLocalX, blobLocalY, newBlob->blobBearing);
+    leftViewBlobVector.push_back(newBlob);
+  }
   return;
 }
 
 void bodyOrientationCallback(const geometry_msgs::PoseStamped& pose){
 
   double orientation = tf::getYaw(pose.pose.orientation);
-
   
   magneticHeadingError = orientation + M_PI/2.;
+
+  //printf("magneticError = %f\n",magneticHeadingError);
 
   if(magneticHeadingError > 0.05)
     aligned = false;
   else
     aligned = true;
-
 }
 
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
@@ -241,6 +337,14 @@ void CloseServo(int servoMotorHandle, ros::Publisher servoPublisher){
 //===========================================================================
 // Helper Functions
 //===========================================================================
+vector<blobClass*> AppendFirst2Second(vector<blobClass*> v1, vector<blobClass*> v2){
+ 
+  for(int i = 0; i < v1.size(); i++)
+    v2.push_back(v1[i]);
+  
+  return v2;
+};
+
 void sendMsg2Console(ros::NodeHandle node, int outputHandle, string msg){
    
   ros::ServiceClient consoleClient =
@@ -485,6 +589,20 @@ int main(int argc,char* argv[]){
   
   while (ros::ok() and simulationRunning){
 
+    fullBlobVector.clear();
+    fullBlobVector = AppendFirst2Second( frontViewBlobVector, fullBlobVector);
+    fullBlobVector = AppendFirst2Second( leftViewBlobVector, fullBlobVector);
+    fullBlobVector = AppendFirst2Second( rightViewBlobVector, fullBlobVector);
+    fullBlobVector = AppendFirst2Second( rearViewBlobVector, fullBlobVector);
+    int size = fullBlobVector.size();
+
+    /*
+    printf("=============\n# of Blobs = %i \n",  size);
+    for(int i = 0; i < fullBlobVector.size(); i++){
+      printf("blob # %i bearing %f\n",i,fullBlobVector[i]->blobBearing);
+    }
+    */
+
     bool stimuli[7];
     stimuli[0] = frontProxSensor;
     stimuli[1] = rearProxSensor;
@@ -496,7 +614,7 @@ int main(int argc,char* argv[]){
 
     // Send stimuli data
     fsm->UpdateBehaviour(stimuli);
-    
+    fsm->UpdateBlobData(fullBlobVector);
     // Send visual servo data
     fsm->SetMagneticHeadingError(magneticHeadingError);
     fsm->SetFormationHeadingError(formationHeadingError);

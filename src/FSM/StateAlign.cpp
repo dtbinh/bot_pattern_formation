@@ -41,23 +41,23 @@ State * StateAlign::Transition(bool* stimuli){
 
   SetStimuli(stimuli);
 
-  if(not aligned){
-    return NULL;
-  }
-  else if(friendAhead and (friendLeft or friendRight) and not friendBehind ){
-    return new StateCruise();
-  }
-  else if(friendAhead and not friendBehind ){
-    return new StateCatchUp();
-  }
-  else if( frontProx ){
+  if( frontProx ){
     return new StateEvade();
   }
-  else if( friendBehind and not friendAhead){
+  else if( not aligned){
+    return NULL;
+  }
+  else if(not (friendAhead and friendBehind) ){
+    return new StateCruise();
+  }
+  else if(friendBehind and not friendAhead){
     return new StateHalt();
   }
-  else if (friendAhead and friendBehind){
+  else if(friendAhead and friendBehind){
     return new StateImpulseSpeed();
+  }
+   else if(friendAhead and not friendBehind){
+    return new StateCatchUp();
   }
   else{
     return NULL;

@@ -1,9 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <vector>
 
 #include "FSM.h"
 #include "State.h"
 #include "StateAlign.h"
+#include "blobClass.h"
+
+using namespace std;
 
 StateManager::StateManager(){
 
@@ -95,6 +99,14 @@ bool StateManager::MovingForward(){
     return true;
   else
     return false;
+};
+
+void StateManager::UpdateBlobData(vector<blobClass*> aVectorOfBlobs){
+  
+  for(int i = 0; i < aVectorOfBlobs.size(); i++){
+    blobVector.push_back(aVectorOfBlobs[i]);
+  }
+
 };
 
 void StateManager::CloseServo(){

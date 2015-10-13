@@ -36,25 +36,14 @@ State * StateHalt::Transition(bool* stimuli){
 
   SetStimuli(stimuli);
 
-  if(aligned){
-    if( not friendBehind and (friendLeft or friendRight) )
-      return new StateCruise();
-    else if ( friendAhead and not friendBehind)
-      return new StateCatchUp();
-    else if ( friendBehind and friendAhead)
-      return new StateImpulseSpeed();
-    else
-      return NULL;
-  }
-  else{
-    if(not aligned)
-      return new StateAlign();
-    else if(not aligned )
-      return new StateAlign();
-    else
-      return NULL;
-  }
- 
+  if(not aligned)
+    return new StateAlign();
+  else if(not friendBehind and not friendAhead)
+    return new StateCruise();
+  else if(friendAhead and friendBehind)
+    return new StateImpulseSpeed();
+  else
+      return NULL; 
 };
 
 std::string StateHalt::GetNameString(){

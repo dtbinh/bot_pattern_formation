@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string>
+#include <math.h>
 
 #include "StateImpulseSpeed.h"
 #include "StateCruise.h"
@@ -33,14 +34,13 @@ void StateEvade::Execute(StateManager * fsm){
   //printf("Executing behaviour %s...\n", name.c_str());
 
   // This speed is half the standard speed 
-  fsm->SetTransSpeed(2);
-  
-  // This value should depend on formationHeadingError
-  float trackingError = fsm->GetFormationHeadingError();
-  float kp = fsm->GetProportionalGain();  
-  
-  fsm->SetRotSpeed(kp*trackingError);
+  fsm->SetTransSpeed(-1);
 
+  if(first){
+    float r = (M_PI/2.)*float(rand()/RAND_MAX);
+    fsm->SetRotSpeed(r);
+    first = false;
+  }
 };
 
 void StateEvade::Exit(){};
@@ -51,30 +51,16 @@ State * StateEvade::Transition(bool* stimuli){
    
   time_t currentTime;
   time(&currentTime);
-  // Check if manvouver has finished yet
 
+  // Check if manvouver has finished yet
   if(difftime(currentTime, timeStamp) > deltaT){
     timerExpired = true;
   }
 
-  if(friendAhead and (friendLeft or friendRight) ){
-    return new StateCruise();
-  }
-  else if(friendAhead and not friendBehind ){
-    return new StateCatchUp();
-  }
-  else if(not aligned ){
-    return new StateAlign();
-  }
-  else if( frontProx ){
-    return new StateEvade();
-  }
-  else if( friendBehind and not friendAhead){
-    return new StateHalt();
-  }
-  else{
+  if(not timerExpired)
     return NULL;
-  }
+  else
+    return  new StateAlign();
 
 };
 

@@ -9,9 +9,7 @@
 
 // Abstract base class for state
 #include "State.h"
-
-// State classes
-#include "State.h"
+#include "blobClass.h"
 
 using namespace std;
 
@@ -22,6 +20,7 @@ public:
   StateManager();
 
   void UpdateBehaviour(bool* stimuli);
+  void UpdateBlobData(vector<blobClass*> aVectorOfBlobs);
 
   void ExecuteBehaviour(float& trans, float& rot, bool& servoOpen);
  
@@ -56,5 +55,7 @@ private:
   float formationHeadingError;
 
   float kp;
+
+  vector<blobClass*> blobVector;
 };
 #endif
